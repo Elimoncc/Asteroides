@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Asteroids - Canvas</title>
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: black;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+
+        canvas {
+            display: block;
+            border: 2px solid rgb(0, 161, 0);
+        }
+    </style>
+</head>
+
+<body>
+
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        class ManejadorEntrada {
+            constructor(alDisparar) {
+                this.teclasPresionadas = {};
+                this.alDisparar = alDisparar;
+                this.escucharTeclado();
+            }
+
+            estaPresionada(tecla) {
+                return !!this.teclasPresionadas[tecla];
+            }
+
+            escucharTeclado() {
+                document.addEventListener("keydown", (e) => {
+                    this.teclasPresionadas[e.key] = true;
+
+                    if (e.key === " ") {
+                        e.preventDefault();
+                        this.alDisparar();
+                    }
+                });
+
+                document.addEventListener("keyup", (e) => {
+                    this.teclasPresionadas[e.key] = false;
+                });
+            }
+        }
+
+        class Bala {
+            static VELOCIDAD = 12;
+            static TAMANO = 8;
+
+            constructor(x, y, angulo) {
+                this.x = x;
+                this.y = y;
+                this.angulo = angulo;
+                this.rad = angulo * Math.PI / 180;
+            }
+
+            actualizar() {
+                this.x += Math.cos(this.rad) * Bala.VELOCIDAD;
+                this.y += Math.sin(this.rad) * Bala.VELOCIDAD;
+            }
+
+            dibujar() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rad);
+                ctx.fillStyle = '#c3fac4';
+                ctx.fillRect(-10, -Bala.TAMANO / 2, 8, Bala.TAMANO);
+                ctx.restore();
+            }
+
+            fueraDePantalla() {
+                return (
+                    this.x < 0 || this.x > canvas.width ||
+                    this.y < 0 || this.y > canvas.height
+                );
+            }
+        }
+
+        class Nave {
+            static TAMANO = 30;
+            static VELOCIDAD = 6;
+            static ROTACION = 5;
+
+            constructor() {
+                this.x = canvas.width / 2;
+                this.y = canvas.height / 2;
+                this.angulo = -90;
+                this.balas = [];
+            }
+
+            actualizar(entrada) {
+                if (entrada.estaPresionada("ArrowLeft")) {
+                    this.angulo -= Nave.ROTACION;
+                }
+
+                if (entrada.estaPresionada("ArrowRight")) {
+                    this.angulo += Nave.ROTACION;
+                }
+
+                if (entrada.estaPresionada("ArrowUp")) {
+                    const rad = this.angulo * Math.PI / 180;
+                    this.x += Math.cos(rad) * Nave.VELOCIDAD;
+                    this.y += Math.sin(rad) * Nave.VELOCIDAD;
+                }
+
+                this.mantenerEnPantalla();
+            }
+
+            mantenerEnPantalla() {
+                const cent = Nave.TAMANO / 2;
+                if (this.x < -cent){
+                    this.x = canvas.width + cent;
+                }
+                if (this.x > canvas.width + cent){
+                    this.x = -cent;
+                }
+                if (this.y < -cent) {
+                    this.y = canvas.height + cent;
+                }
+                if (this.y > canvas.height + cent){
+                    this.y = -cent;
+                }
+            }
+
+            disparar() {
+                const rad = this.angulo * Math.PI / 180;
+                const offset = 25;
+
+                const balaX = this.x + Math.cos(rad) * offset;
+                const balaY = this.y + Math.sin(rad) * offset;
+
+                this.balas.push(new Bala(balaX, balaY, this.angulo));
+            }
+
+            dibujar() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angulo * Math.PI / 180);
+
+                ctx.strokeStyle = '#424632';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(25, 0);      // punta
+                ctx.lineTo(-15, 15);    // ala de
+                ctx.lineTo(-10, 0);     // base
+                ctx.lineTo(-15, -15);   // ala izq
+                ctx.closePath();
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(-10, 0);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+        }
+
+
+        class Juego {
+            constructor() {
+                this.nave = new Nave();
+                this.entrada = new ManejadorEntrada(() => this.nave.disparar());
+
+                this.ultimoDisparo = 0;
+                this.cooldownDisparo = 200;
+            }
+
+            actualizar() {
+                this.nave.actualizar(this.entrada);
+
+                for (let i = this.nave.balas.length - 1; i >= 0; i--) {
+                    const bala = this.nave.balas[i];
+                    bala.actualizar();
+
+                    if (bala.fueraDePantalla()) {
+                        this.nave.balas.splice(i, 1);
+                    }
+                }
+            }
+
+            dibujar() {
+                ctx.fillStyle = 'black';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                this.nave.dibujar();
+
+                this.nave.balas.forEach(bala => bala.dibujar());
+            }
+
+            loop() {
+                this.actualizar();
+                this.dibujar();
+                requestAnimationFrame(() => this.loop());
+            }
+
+            iniciar() {
+                this.loop();
+            }
+        }
+        const juego = new Juego();
+        juego.iniciar();
+    </script>
+
+</body>
+
+</html>
