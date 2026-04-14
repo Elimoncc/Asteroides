@@ -14,12 +14,8 @@
         body {
             margin: 0;
             padding: 0;
-            width: 100%;
-            height: 100%;
             overflow: hidden;
             background: black;
-            color: white;
-            font-family: Arial, sans-serif;
         }
 
         canvas {
@@ -44,6 +40,88 @@
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
 
+
+        class Asteroide {
+            static TIPOS = {
+                grande: { radio: 60, velocidad: 1.2, puntos: 12 },
+                mediano: { radio: 35, velocidad: 1.8, puntos: 10 },
+                pequeno: { radio: 18, velocidad: 2.5, puntos: 9 }
+            };
+
+            static FORMAS = {
+                grande: [0.95, 1.15, 0.85, 1.25, 0.90, 1.10, 0.80, 1.20, 0.95, 1.05, 0.88, 1.18],
+                mediano: [0.90, 1.20, 0.85, 1.15, 0.95, 1.10, 0.80, 1.25, 0.92, 1.08],
+                pequeno: [0.85, 1.25, 0.90, 1.15, 0.80, 1.20, 0.95, 1.10, 0.88]
+            };
+
+            constructor(x, y, tipo = 'grande') {
+                this.x = x;
+                this.y = y;
+                this.tipo = tipo;
+
+                const config = Asteroide.TIPOS[tipo];
+                this.radio = config.radio;
+                this.velocidad = config.velocidad;
+
+                this.anguloMovimiento = Math.random() * Math.PI * 2;
+                this.anguloRotacion = Math.random() * Math.PI * 2;
+                this.velocidadRotacion = (Math.random() - 0.5) * 0.045;
+
+                this.factorVertices = Asteroide.FORMAS[tipo];
+            }
+
+            actualizar() {
+                this.x += Math.cos(this.anguloMovimiento) * this.velocidad;
+                this.y += Math.sin(this.anguloMovimiento) * this.velocidad;
+                this.anguloRotacion += this.velocidadRotacion;
+
+                const r = this.radio;
+                if (this.x < -r) {
+                    this.x = canvas.width + r;
+                };
+                if (this.x > canvas.width + r) {
+                    this.x = -r;
+                };
+                if (this.y < -r) {
+                    this.y = canvas.height + r;
+                };
+                if (this.y > canvas.height + r) {
+                    this.y = -r;
+                };
+            }
+
+            dibujar() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.anguloRotacion);
+
+                ctx.strokeStyle = '#aaaaaa';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+
+                const numPuntos = this.factorVertices.length;
+
+                for (let i = 0; i < numPuntos; i++) {
+                    const ang = (i / numPuntos) * Math.PI * 2;
+                    const radioReal = this.radio * this.factorVertices[i];
+
+                    const px = Math.cos(ang) * radioReal;
+                    const py = Math.sin(ang) * radioReal;
+
+                    if (i === 0) {
+                        ctx.moveTo(px, py);
+                    } else {
+                        ctx.lineTo(px, py);
+                    }
+                }
+
+                ctx.closePath();
+                ctx.stroke();
+
+                ctx.restore();
+            }
+        }
+
         class ManejadorEntrada {
             constructor(alDisparar) {
                 this.teclasPresionadas = {};
@@ -58,7 +136,6 @@
             escucharTeclado() {
                 document.addEventListener("keydown", (e) => {
                     this.teclasPresionadas[e.key] = true;
-
                     if (e.key === " ") {
                         e.preventDefault();
                         this.alDisparar();
@@ -117,46 +194,33 @@
             }
 
             actualizar(entrada) {
-                if (entrada.estaPresionada("ArrowLeft")) {
+                if (entrada.estaPresionada("ArrowLeft")){
                     this.angulo -= Nave.ROTACION;
                 }
-
-                if (entrada.estaPresionada("ArrowRight")) {
+                if (entrada.estaPresionada("ArrowRight")){
                     this.angulo += Nave.ROTACION;
                 }
-
                 if (entrada.estaPresionada("ArrowUp")) {
                     const rad = this.angulo * Math.PI / 180;
                     this.x += Math.cos(rad) * Nave.VELOCIDAD;
                     this.y += Math.sin(rad) * Nave.VELOCIDAD;
-                }
-
+                };
                 this.mantenerEnPantalla();
             }
 
             mantenerEnPantalla() {
                 const cent = Nave.TAMANO / 2;
-                if (this.x < -cent){
-                    this.x = canvas.width + cent;
-                }
-                if (this.x > canvas.width + cent){
-                    this.x = -cent;
-                }
-                if (this.y < -cent) {
-                    this.y = canvas.height + cent;
-                }
-                if (this.y > canvas.height + cent){
-                    this.y = -cent;
-                }
+                if (this.x < -cent) this.x = canvas.width + cent;
+                if (this.x > canvas.width + cent) this.x = -cent;
+                if (this.y < -cent) this.y = canvas.height + cent;
+                if (this.y > canvas.height + cent) this.y = -cent;
             }
 
             disparar() {
                 const rad = this.angulo * Math.PI / 180;
                 const offset = 25;
-
                 const balaX = this.x + Math.cos(rad) * offset;
                 const balaY = this.y + Math.sin(rad) * offset;
-
                 this.balas.push(new Bala(balaX, balaY, this.angulo));
             }
 
@@ -168,10 +232,10 @@
                 ctx.strokeStyle = '#424632';
                 ctx.lineWidth = 3;
                 ctx.beginPath();
-                ctx.moveTo(25, 0);      // punta
-                ctx.lineTo(-15, 15);    // ala de
-                ctx.lineTo(-10, 0);     // base
-                ctx.lineTo(-15, -15);   // ala izq
+                ctx.moveTo(25, 0);
+                ctx.lineTo(-15, 15);
+                ctx.lineTo(-10, 0);
+                ctx.lineTo(-15, -15);
                 ctx.closePath();
                 ctx.stroke();
 
@@ -184,14 +248,33 @@
             }
         }
 
-
         class Juego {
             constructor() {
                 this.nave = new Nave();
                 this.entrada = new ManejadorEntrada(() => this.nave.disparar());
+                this.asteroides = [];
 
-                this.ultimoDisparo = 0;
-                this.cooldownDisparo = 200;
+                this.crearAsteroidesIniciales(8);
+            }
+
+            crearAsteroidesIniciales(cantidad) {
+                for (let i = 0; i < cantidad; i++) {
+                    let x, y;
+
+                    do {
+                        x = Math.random() * canvas.width;
+                        y = Math.random() * canvas.height;
+                    } while (Math.hypot(x - this.nave.x, y - this.nave.y) < 150);
+                    //d=raiz( (x2-x1)^2  + (y2-y1)^2 )
+
+                    const rand = Math.random();
+                    let tipo = 'grande';
+
+                    if (rand > 0.7) { tipo = 'mediano'; }
+                    if (rand > 0.9) { tipo = 'pequeno'; }
+
+                    this.asteroides.push(new Asteroide(x, y, tipo));
+                }
             }
 
             actualizar() {
@@ -200,11 +283,14 @@
                 for (let i = this.nave.balas.length - 1; i >= 0; i--) {
                     const bala = this.nave.balas[i];
                     bala.actualizar();
-
                     if (bala.fueraDePantalla()) {
                         this.nave.balas.splice(i, 1);
                     }
                 }
+
+                this.asteroides.forEach(asteroide => {
+                    asteroide.actualizar();
+                });
             }
 
             dibujar() {
@@ -212,8 +298,8 @@
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
                 this.nave.dibujar();
-
                 this.nave.balas.forEach(bala => bala.dibujar());
+                this.asteroides.forEach(asteroide => asteroide.dibujar());
             }
 
             loop() {
@@ -226,6 +312,7 @@
                 this.loop();
             }
         }
+
         const juego = new Juego();
         juego.iniciar();
     </script>
