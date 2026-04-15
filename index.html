@@ -22,6 +22,102 @@
             display: block;
             border: 2px solid rgb(0, 161, 0);
         }
+
+        #pantalla-game-over {
+            display: none;
+            position: absolute;
+            inset: 0;
+            background: black;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 32px;
+        }
+
+        #pantalla-game-over.visible {
+            display: flex;
+        }
+
+        #pantalla-game-over h1 {
+            color: white;
+            font-family: 'Courier New', monospace;
+            font-size: clamp(48px, 10vw, 96px);
+            letter-spacing: 12px;
+            margin: 0;
+            text-transform: uppercase;
+        }
+
+        #btn-reiniciar {
+           width: 220px;
+            height: 50px;
+            border: none;
+            outline: none;
+            color: #fff;
+            background: #111;
+            cursor: pointer;
+            position: relative;
+            z-index: 0;
+            border-radius: 10px;
+        }
+
+        #btn-reiniciar::before {
+            content: '';
+            background: linear-gradient(45deg, #ff0000, #ff7300, #fffb00, #48ff00, #00ffd5, #002bff, #7a00ff, #ff00c8, #ff0000);
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            background-size: 400%;
+            z-index: -1;
+            filter: blur(5px);
+            width: calc(100% + 4px);
+            height: calc(100% + 4px);
+            animation: glowing 20s linear infinite;
+            opacity: 0;
+            transition: opacity .3s ease-in-out;
+            border-radius: 10px;
+        }
+
+         /*Boton*/
+
+        
+
+        #btn-reiniciar:active {
+            color: #000
+        }
+
+        #btn-reiniciar:active:after {
+            background: transparent;
+        }
+
+        #btn-reiniciar:hover:before {
+            opacity: 1;
+        }
+
+        #btn-reiniciar:after {
+            z-index: -1;
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: #111;
+            left: 0;
+            top: 0;
+            border-radius: 10px;
+        }
+
+        @keyframes glowing {
+            0% {
+                background-position: 0 0;
+            }
+
+            50% {
+                background-position: 400% 0;
+            }
+
+            100% {
+                background-position: 0 0;
+            }
+        }
     </style>
 </head>
 
@@ -29,9 +125,16 @@
 
     <canvas id="canvas"></canvas>
 
+    <div id="pantalla-game-over">
+        <h1>Game Over</h1>
+        <button id="btn-reiniciar">Volver a jugar</button>
+    </div>
+
     <script>
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
+        const pantallaGameOver = document.getElementById('pantalla-game-over');
+        const btnReiniciar = document.getElementById('btn-reiniciar');
 
         function resizeCanvas() {
             canvas.width = window.innerWidth;
@@ -43,7 +146,7 @@
 
         class Asteroide {
             static TIPOS = {
-                grande: { radio: 60, velocidad: 1.2, puntos: 12 },
+                grande: { radio: 55, velocidad: 1.2, puntos: 12 },
                 mediano: { radio: 35, velocidad: 1.8, puntos: 10 },
                 pequeno: { radio: 18, velocidad: 2.5, puntos: 9 }
             };
@@ -76,18 +179,10 @@
                 this.anguloRotacion += this.velocidadRotacion;
 
                 const r = this.radio;
-                if (this.x < -r) {
-                    this.x = canvas.width + r;
-                };
-                if (this.x > canvas.width + r) {
-                    this.x = -r;
-                };
-                if (this.y < -r) {
-                    this.y = canvas.height + r;
-                };
-                if (this.y > canvas.height + r) {
-                    this.y = -r;
-                };
+                if (this.x < -r) this.x = canvas.width + r;
+                if (this.x > canvas.width + r) this.x = -r;
+                if (this.y < -r) this.y = canvas.height + r;
+                if (this.y > canvas.height + r) this.y = -r;
             }
 
             dibujar() {
@@ -117,7 +212,6 @@
 
                 ctx.closePath();
                 ctx.stroke();
-
                 ctx.restore();
             }
         }
@@ -145,6 +239,10 @@
                 document.addEventListener("keyup", (e) => {
                     this.teclasPresionadas[e.key] = false;
                 });
+            }
+
+            limpiarTeclas() {
+                this.teclasPresionadas = {};
             }
         }
 
@@ -185,6 +283,8 @@
             static TAMANO = 30;
             static VELOCIDAD = 6;
             static ROTACION = 5;
+           
+            static RADIO_COLISION = 18;
 
             constructor() {
                 this.x = canvas.width / 2;
@@ -194,17 +294,17 @@
             }
 
             actualizar(entrada) {
-                if (entrada.estaPresionada("ArrowLeft")){
+                if (entrada.estaPresionada("ArrowLeft")) {
                     this.angulo -= Nave.ROTACION;
                 }
-                if (entrada.estaPresionada("ArrowRight")){
+                if (entrada.estaPresionada("ArrowRight")) {
                     this.angulo += Nave.ROTACION;
                 }
                 if (entrada.estaPresionada("ArrowUp")) {
                     const rad = this.angulo * Math.PI / 180;
                     this.x += Math.cos(rad) * Nave.VELOCIDAD;
                     this.y += Math.sin(rad) * Nave.VELOCIDAD;
-                };
+                }
                 this.mantenerEnPantalla();
             }
 
@@ -222,6 +322,12 @@
                 const balaX = this.x + Math.cos(rad) * offset;
                 const balaY = this.y + Math.sin(rad) * offset;
                 this.balas.push(new Bala(balaX, balaY, this.angulo));
+            }
+
+            colisionaCon(asteroide) {
+                const distancia = Math.hypot(this.x - asteroide.x, this.y - asteroide.y);
+                const radioEfectivoAsteroide = asteroide.radio * 0.75;
+                return distancia < Nave.RADIO_COLISION + radioEfectivoAsteroide;
             }
 
             dibujar() {
@@ -251,10 +357,34 @@
         class Juego {
             constructor() {
                 this.nave = new Nave();
-                this.entrada = new ManejadorEntrada(() => this.nave.disparar());
+                this.entrada = new ManejadorEntrada(() => {
+                    if (!this.pausado) this.nave.disparar();
+                });
                 this.asteroides = [];
+                this.pausado = false;
 
                 this.crearAsteroidesIniciales(8);
+                this.configurarBotonReiniciar();
+            }
+
+            configurarBotonReiniciar() {
+                btnReiniciar.addEventListener('click', () => {
+                    this.reiniciar();
+                });
+            }
+
+            reiniciar() {
+                this.nave = new Nave();
+                this.entrada.alDisparar = () => {
+                    if (!this.pausado) this.nave.disparar();
+                };
+                this.entrada.limpiarTeclas();
+                this.asteroides = [];
+                this.pausado = false;
+
+                this.crearAsteroidesIniciales(8);
+
+                pantallaGameOver.classList.remove('visible');
             }
 
             crearAsteroidesIniciales(cantidad) {
@@ -265,19 +395,34 @@
                         x = Math.random() * canvas.width;
                         y = Math.random() * canvas.height;
                     } while (Math.hypot(x - this.nave.x, y - this.nave.y) < 150);
-                    //d=raiz( (x2-x1)^2  + (y2-y1)^2 )
 
                     const rand = Math.random();
                     let tipo = 'grande';
 
-                    if (rand > 0.7) { tipo = 'mediano'; }
-                    if (rand > 0.9) { tipo = 'pequeno'; }
+                    if (rand > 0.7) tipo = 'mediano';
+                    if (rand > 0.9) tipo = 'pequeno';
 
                     this.asteroides.push(new Asteroide(x, y, tipo));
                 }
             }
 
+            verificarColisiones() {
+                for (const asteroide of this.asteroides) {
+                    if (this.nave.colisionaCon(asteroide)) {
+                        this.gameOver();
+                        return;
+                    }
+                }
+            }
+
+            gameOver() {
+                this.pausado = true;
+                pantallaGameOver.classList.add('visible');
+            }
+
             actualizar() {
+                if (this.pausado) return;
+
                 this.nave.actualizar(this.entrada);
 
                 for (let i = this.nave.balas.length - 1; i >= 0; i--) {
@@ -288,9 +433,9 @@
                     }
                 }
 
-                this.asteroides.forEach(asteroide => {
-                    asteroide.actualizar();
-                });
+                this.asteroides.forEach(asteroide => asteroide.actualizar());
+
+                this.verificarColisiones();
             }
 
             dibujar() {
