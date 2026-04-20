@@ -23,7 +23,8 @@
             border: 2px solid rgb(0, 161, 0);
         }
 
-        #pantalla-game-over {
+        #pantalla-game-over,
+        #pantalla-you-win {
             display: none;
             position: absolute;
             inset: 0;
@@ -34,11 +35,13 @@
             gap: 32px;
         }
 
-        #pantalla-game-over.visible {
+        #pantalla-game-over.visible,
+        #pantalla-you-win.visible {
             display: flex;
         }
 
-        #pantalla-game-over h1 {
+        #pantalla-game-over h1,
+        #pantalla-you-win h1 {
             color: white;
             font-family: 'Courier New', monospace;
             font-size: clamp(48px, 10vw, 96px);
@@ -47,8 +50,9 @@
             text-transform: uppercase;
         }
 
-        #btn-reiniciar {
-           width: 220px;
+        #btn-reiniciar,
+        #btn-reiniciar-win {
+            width: 220px;
             height: 50px;
             border: none;
             outline: none;
@@ -60,7 +64,8 @@
             border-radius: 10px;
         }
 
-        #btn-reiniciar::before {
+        #btn-reiniciar::before,
+        #btn-reiniciar-win::before {
             content: '';
             background: linear-gradient(45deg, #ff0000, #ff7300, #fffb00, #48ff00, #00ffd5, #002bff, #7a00ff, #ff00c8, #ff0000);
             position: absolute;
@@ -77,23 +82,23 @@
             border-radius: 10px;
         }
 
-         /*Boton*/
-
-        
-
-        #btn-reiniciar:active {
-            color: #000
+        #btn-reiniciar:active,
+        #btn-reiniciar-win:active {
+            color: #000;
         }
 
-        #btn-reiniciar:active:after {
+        #btn-reiniciar:active:after,
+        #btn-reiniciar-win:active:after {
             background: transparent;
         }
 
-        #btn-reiniciar:hover:before {
+        #btn-reiniciar:hover:before,
+        #btn-reiniciar-win:hover:before {
             opacity: 1;
         }
 
-        #btn-reiniciar:after {
+        #btn-reiniciar:after,
+        #btn-reiniciar-win:after {
             z-index: -1;
             content: '';
             position: absolute;
@@ -106,17 +111,9 @@
         }
 
         @keyframes glowing {
-            0% {
-                background-position: 0 0;
-            }
-
-            50% {
-                background-position: 400% 0;
-            }
-
-            100% {
-                background-position: 0 0;
-            }
+            0% { background-position: 0 0; }
+            50% { background-position: 400% 0; }
+            100% { background-position: 0 0; }
         }
     </style>
 </head>
@@ -130,11 +127,18 @@
         <button id="btn-reiniciar">Volver a jugar</button>
     </div>
 
+    <div id="pantalla-you-win">
+        <h1>You Won!</h1>
+        <button id="btn-reiniciar-win">Volver a jugar</button>
+    </div>
+
     <script>
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         const pantallaGameOver = document.getElementById('pantalla-game-over');
+        const pantallaYouWin = document.getElementById('pantalla-you-win');
         const btnReiniciar = document.getElementById('btn-reiniciar');
+        const btnReiniciarWin = document.getElementById('btn-reiniciar-win');
 
         function resizeCanvas() {
             canvas.width = window.innerWidth;
@@ -142,7 +146,6 @@
         }
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
-
 
         class Asteroide {
             static TIPOS = {
@@ -216,36 +219,6 @@
             }
         }
 
-        class ManejadorEntrada {
-            constructor(alDisparar) {
-                this.teclasPresionadas = {};
-                this.alDisparar = alDisparar;
-                this.escucharTeclado();
-            }
-
-            estaPresionada(tecla) {
-                return !!this.teclasPresionadas[tecla];
-            }
-
-            escucharTeclado() {
-                document.addEventListener("keydown", (e) => {
-                    this.teclasPresionadas[e.key] = true;
-                    if (e.key === " ") {
-                        e.preventDefault();
-                        this.alDisparar();
-                    }
-                });
-
-                document.addEventListener("keyup", (e) => {
-                    this.teclasPresionadas[e.key] = false;
-                });
-            }
-
-            limpiarTeclas() {
-                this.teclasPresionadas = {};
-            }
-        }
-
         class Bala {
             static VELOCIDAD = 12;
             static TAMANO = 8;
@@ -282,8 +255,8 @@
         class Nave {
             static TAMANO = 30;
             static VELOCIDAD = 6;
-            static ROTACION = 5;
-           
+            static ROTACION = 4;
+
             static RADIO_COLISION = 18;
 
             constructor() {
@@ -354,9 +327,56 @@
             }
         }
 
+        class Vista {
+            limpiarPantalla() {
+                ctx.fillStyle = 'black';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+
+            dibujarNave(nave) {
+                nave.dibujar();
+                nave.balas.forEach(bala => bala.dibujar());
+            }
+
+            dibujarAsteroides(asteroides) {
+                asteroides.forEach(asteroide => asteroide.dibujar());
+            }
+        }
+
+        class ManejadorEntrada {
+            constructor(alDisparar) {
+                this.teclasPresionadas = {};
+                this.alDisparar = alDisparar;
+                this.escucharTeclado();
+            }
+
+            estaPresionada(tecla) {
+                return !!this.teclasPresionadas[tecla];
+            }
+
+            escucharTeclado() {
+                document.addEventListener("keydown", (e) => {
+                    this.teclasPresionadas[e.key] = true;
+                    if (e.key === " ") {
+                        e.preventDefault();
+                        this.alDisparar();
+                    }
+                });
+
+                document.addEventListener("keyup", (e) => {
+                    this.teclasPresionadas[e.key] = false;
+                });
+            }
+
+            limpiarTeclas() {
+                this.teclasPresionadas = {};
+            }
+        }
+
         class Juego {
             constructor() {
                 this.nave = new Nave();
+                this.vista = new Vista();
                 this.entrada = new ManejadorEntrada(() => {
                     if (!this.pausado) this.nave.disparar();
                 });
@@ -364,13 +384,12 @@
                 this.pausado = false;
 
                 this.crearAsteroidesIniciales(8);
-                this.configurarBotonReiniciar();
+                this.configurarBotonesReiniciar();
             }
 
-            configurarBotonReiniciar() {
-                btnReiniciar.addEventListener('click', () => {
-                    this.reiniciar();
-                });
+            configurarBotonesReiniciar() {
+                btnReiniciar.addEventListener('click', () => this.reiniciar());
+                btnReiniciarWin.addEventListener('click', () => this.reiniciar());
             }
 
             reiniciar() {
@@ -385,6 +404,7 @@
                 this.crearAsteroidesIniciales(8);
 
                 pantallaGameOver.classList.remove('visible');
+                pantallaYouWin.classList.remove('visible');
             }
 
             crearAsteroidesIniciales(cantidad) {
@@ -420,6 +440,11 @@
                 pantallaGameOver.classList.add('visible');
             }
 
+            youWin() {
+                this.pausado = true;
+                pantallaYouWin.classList.add('visible');
+            }
+
             actualizar() {
                 if (this.pausado) return;
 
@@ -428,23 +453,41 @@
                 for (let i = this.nave.balas.length - 1; i >= 0; i--) {
                     const bala = this.nave.balas[i];
                     bala.actualizar();
+
                     if (bala.fueraDePantalla()) {
+                        this.nave.balas.splice(i, 1);
+                        continue;
+                    }
+
+                    let balaTocaAsteroide = false;
+                    for (let j = this.asteroides.length - 1; j >= 0; j--) {
+                        const asteroide = this.asteroides[j];
+                        const distancia = Math.hypot(bala.x - asteroide.x, bala.y - asteroide.y);
+
+                        if (distancia < asteroide.radio * 0.75) {
+                            this.asteroides.splice(j, 1);
+                            balaTocaAsteroide = true;
+                            break;
+                        }
+                    }
+
+                    if (balaTocaAsteroide) {
                         this.nave.balas.splice(i, 1);
                     }
                 }
 
                 this.asteroides.forEach(asteroide => asteroide.actualizar());
-
                 this.verificarColisiones();
+
+                if (this.asteroides.length === 0) {
+                    this.youWin();
+                }
             }
 
             dibujar() {
-                ctx.fillStyle = 'black';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-                this.nave.dibujar();
-                this.nave.balas.forEach(bala => bala.dibujar());
-                this.asteroides.forEach(asteroide => asteroide.dibujar());
+                this.vista.limpiarPantalla();
+                this.vista.dibujarNave(this.nave);
+                this.vista.dibujarAsteroides(this.asteroides);
             }
 
             loop() {
